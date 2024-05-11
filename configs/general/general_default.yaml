@@ -2,7 +2,8 @@
 name: 'graph-tf-model'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: 'online'             # online | offline | disabled
-gpus: 1                     # Multi-gpu is not implemented on this branch
+gpus: 4                     # Multi-gpu used for training
+num_nodes: 1                # Multi-machine used for distributed learning
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
 test_only: null         # Use absolute path

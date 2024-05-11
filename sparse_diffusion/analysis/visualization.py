@@ -1,5 +1,5 @@
 import os
-
+# move rdkit to main.py
 from rdkit import Chem
 from rdkit.Chem import Draw, AllChem
 from rdkit.Geometry import Point3D

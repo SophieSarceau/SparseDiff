@@ -1,9 +1,9 @@
 import os
+import sklearn
 import torch
 import numpy as np
 import time
 from scipy import linalg
-import sklearn
 import dgl
 from sklearn.preprocessing import StandardScaler
 

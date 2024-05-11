@@ -1,8 +1,18 @@
+import time
+START_TIME = time.time()
+print("Loading libraries...")
 import os
+# Set the number of OpenMP threads to use for parallel regions
+os.environ["OMP_NUM_THREADS"] = "64"
+import sklearn
+from rdkit import Chem
+from rdkit.Chem import Draw, AllChem
+from rdkit.Geometry import Point3D
+from rdkit import RDLogger
+print("import rdkit finished")
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import pathlib
-
 # graph_tool need to be imported before torch
 try:
     import graph_tool.all as gt
@@ -27,14 +37,17 @@ import resource
 resource.setrlimit(
     resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
 )
-
+END_TIME = time.time()
+print("Time to load libraries: ", END_TIME - START_TIME, 's')
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="config")
 def main(cfg: DictConfig):
+    print("cfg: ", cfg)
     dataset_config = cfg["dataset"]
     pl.seed_everything(cfg.train.seed)
 
     if dataset_config["name"] in ["sbm", "comm20", "planar", "ego"]:
+        print("Processing ", dataset_config["name"], "dataset.")
         from datasets.spectre_dataset_pyg import (
             SBMDataModule,
             Comm20DataModule,
@@ -51,13 +64,14 @@ def main(cfg: DictConfig):
             datamodule = EgoDataModule(cfg)
         else:
             datamodule = PlanarDataModule(cfg)
-
+        print("Finish loading datamodule.")
         dataset_infos = SpectreDatasetInfos(datamodule)
         train_metrics = TrainAbstractMetricsDiscrete()
         domain_features = DummyExtraFeatures()
         dataloaders = datamodule.dataloaders
 
     elif dataset_config["name"] == 'protein':
+        print("Processing ", dataset_config["name"], "dataset.")
         from datasets import protein_dataset
 
         datamodule = protein_dataset.ProteinDataModule(cfg)
@@ -67,9 +81,10 @@ def main(cfg: DictConfig):
         dataloaders = datamodule.dataloaders
 
     elif dataset_config["name"] in ["qm9", "guacamol", "moses"]:
+        print("Processing ", dataset_config["name"], "dataset.")
         if dataset_config["name"] == "qm9":
+            print("Loading QM9 dataset.")
             from datasets import qm9_dataset
-
             datamodule = qm9_dataset.QM9DataModule(cfg)
             dataset_infos = qm9_dataset.QM9Infos(datamodule=datamodule, cfg=cfg)
 
@@ -165,11 +180,13 @@ def main(cfg: DictConfig):
         print("[WARNING]: Run is called 'debug' -- it will run with fast_dev_run. ")
 
     use_gpu = cfg.general.gpus > 0 and torch.cuda.is_available()
+    print("Using GPU:", use_gpu)
     trainer = pl.Trainer(
         gradient_clip_val=cfg.train.clip_grad,
         strategy="ddp",
         accelerator="gpu" if use_gpu else "cpu",
         devices=cfg.general.gpus if use_gpu else 1,
+        num_nodes=cfg.general.num_nodes,
         val_check_interval=cfg.general.val_check_interval,
         max_epochs=cfg.train.n_epochs,
         check_val_every_n_epoch=cfg.general.check_val_every_n_epochs,
